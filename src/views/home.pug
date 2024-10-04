@@ -1,0 +1,19 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title zooom
+        link(rel="stylesheet", href="https://unpkg.com/mvp.css")
+    body 
+        header 
+            h1 zooom
+        main 
+            ul
+             form#nick
+                input(type='text', placeholder='choose a nickname', reuired)
+                button Save
+            form#message
+                input(type='text', placeholder='write a msg', reuired)
+                button Send
+        script(src="/public/js/app.js")
