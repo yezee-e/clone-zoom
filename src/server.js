@@ -49,28 +49,55 @@ const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 httpServer.listen(3005, handleListen);
 
+function publicRooms() {
+    const { rooms, sids } = wsServer.sockets.adapter;
+    const publicRooms = [];
+    rooms.forEach((_, key) => {
+        if (sids.get(key) === undefined) {
+            publicRooms.push(key);
+        }
+    });
+    return publicRooms;
+}
+
+function countRoom(roomName) {
+    return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
+
 wsServer.on('connection', (socket) => {
+    socket['nickname'] = 'Anon';
     socket.onAny((e) => {
-        console.log(`Socket event ${e}`);
+        console.log(`Socket event ${e}`); //소켓 이벤트를 감지
     });
 
     socket.on('enter_room', (roomName, done) => {
         socket.join(roomName); //방에입장
         done(); //방에입장을 프론트에 알림
-        socket.to(roomName).emit('welcome'); //본인을 제외하고 방안모두에게 입장알림
+        socket
+            .to(roomName)
+            .emit('welcome', socket.nickname, countRoom(roomName)); //본인을 제외하고 방안모두에게 입장알림
+        wsServer.sockets.emit('room_change', publicRooms()); //메세지를 모든 퍼블릭방에 전달(public방이 생성됨)
         socket.on('disconnecting', () => {
             socket.rooms.forEach((room) => {
-                socket.to(room).emit('bye');
+                socket
+                    .to(room)
+                    .emit('bye', socket.nickname, countRoom(roomName) - 1);
             });
         }); // 브라우저는 이미 닫았지만 아직 연결이 끊어지지 않은 그 찰나에 발생하는 이벤트
+        socket.on('disconnect', () => {
+            wsServer.sockets.emit('room_change', publicRooms()); // 메세지를 모든 퍼블릭방에 전달(public방이 닫힘)
+        });
         socket.on('new_message', (msg, room, done) => {
-            socket.to(room).emit('new_message', msg);
+            socket.to(room).emit('new_message', `${socket.nickname}:${msg}`);
             done();
         });
+
+        socket.on('nickname', (nickname) => (socket['nickname'] = nickname));
     });
 });
 
 /*disconnect : 연결이 완전히 끊어졌을때 발생하는 이벤트 (room 정보가 비어있음)
 disconnecting : 브라우져는 이미 닫았지만 아직 연결이 끊어지지 않은 그 찰나에
 발생하는 이벤트 (그래서 room 정보가 살아있음)
+
 */
